@@ -13,6 +13,87 @@
 <style>
   body { font-family: 'Cairo', sans-serif; }
   .glass-panel { background: rgba(17,24,39,0.75); backdrop-filter: blur(12px); border: 1px solid rgba(55,65,81,0.5); }
+  
+  /* تأثير Typewriter */
+  .typewriter {
+    overflow: hidden;
+    border-left: 2px solid #dc2626;
+    white-space: pre-wrap;
+    animation: typing 0.05s steps(1) infinite, blink 0.75s step-end infinite;
+    padding-left: 8px;
+  }
+  @keyframes blink {
+    from, to { border-color: transparent; }
+    50% { border-color: #dc2626; }
+  }
+  
+  /* اهتزاز عند الخطأ */
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+  .shake { animation: shake 0.5s ease-in-out; }
+  
+  /* وميض ذهبي عند النجاح */
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(234, 179, 8, 0); }
+    50% { box-shadow: 0 0 40px rgba(234, 179, 8, 0.8); }
+  }
+  .glow { animation: glow 1s ease-in-out 2; }
+  
+  /* ظهور تدريجي */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-in-up { animation: fadeInUp 0.6s ease-out forwards; opacity: 0; }
+  
+  /* صورة المشهد */
+  .scene-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 12px;
+    filter: brightness(0.7) contrast(1.1);
+    transition: filter 0.5s;
+  }
+  .scene-image:hover { filter: brightness(0.85) contrast(1.2); }
+  
+  /* صورة المشتبه به */
+  .suspect-image {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 10px 10px 0 0;
+    filter: grayscale(0.4) brightness(0.85);
+    transition: all 0.3s;
+  }
+  .suspect-card:hover .suspect-image {
+    filter: grayscale(0) brightness(1);
+    transform: scale(1.02);
+  }
+  
+  /* عنوان الفصل */
+  .chapter-title {
+    color: #dc2626;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .chapter-title::before {
+    content: '';
+    width: 20px;
+    height: 1px;
+    background: #dc2626;
+  }
 </style>
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col">
@@ -32,9 +113,9 @@
   </div>
 </header>
 
-<main class="max-w-4xl mx-auto px-4 py-8 flex-grow w-full space-y-8">
+<main class="max-w-4xl mx-auto px-4 py-8 flex-grow w-full space-y-6">
 
-  <div id="welcome-bar" class="glass-panel rounded-xl p-4 text-center hidden">
+  <div id="welcome-bar" class="glass-panel rounded-xl p-3 text-center hidden">
     <p class="text-sm text-gray-300">أهلاً بك يا محقق <span id="welcome-name" class="text-red-400 font-bold"></span> 👋</p>
   </div>
 
@@ -43,26 +124,44 @@
     <span id="solve-state" class="text-gray-400"></span>
   </div>
 
-  <section class="glass-panel rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-    <div class="absolute top-0 right-0 w-2 h-full bg-red-600"></div>
-    <div id="case-loading" class="text-center py-8 text-gray-400">جارٍ تحميل قضية اليوم...</div>
+  <section id="case-section" class="glass-panel rounded-2xl overflow-hidden shadow-2xl relative">
+    <div class="absolute top-0 right-0 w-1 h-full bg-red-600 z-10"></div>
+    
+    <div id="case-loading" class="text-center py-12 text-gray-400">جارٍ تحميل قضية اليوم...</div>
+    
     <div id="case-content" class="hidden">
-      <div class="flex justify-between items-start mb-4">
-        <span id="case-number" class="bg-red-900/40 text-red-400 text-xs px-3 py-1 rounded-full font-bold"></span>
-        <span class="text-xs text-gray-400">اليوم</span>
+      
+      <!-- صورة المشهد -->
+      <div class="relative">
+        <img id="scene-image" class="scene-image" src="" alt="مشهد الجريمة">
+        <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent"></div>
+        <div class="absolute bottom-4 right-4 left-4">
+          <span id="case-number" class="bg-red-600 text-white text-xs px-3 py-1 rounded-full font-bold"></span>
+        </div>
       </div>
-      <h2 id="case-title" class="text-2xl font-bold text-white mb-3"></h2>
-      <p id="case-description" class="text-gray-300 leading-relaxed mb-6 text-sm md:text-base"></p>
 
-      <h3 class="text-lg font-bold text-gray-200 mb-4 border-b border-gray-800 pb-2">المشتبه بهم:</h3>
-      <div id="suspects-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"></div>
+      <!-- عنوان القضية -->
+      <div class="p-6 pb-3">
+        <h2 id="case-title" class="text-2xl font-bold text-white"></h2>
+      </div>
 
-      <div class="text-center">
-        <button id="accuse-btn" onclick="submitAccusation()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3 rounded-xl shadow-lg transition text-sm md:text-base">
+      <!-- الفصول -->
+      <div id="chapters-container" class="px-6 pb-6 space-y-4"></div>
+
+      <!-- المشتبه بهم -->
+      <div class="px-6 pb-6">
+        <h3 class="chapter-title mb-4">المشتبه بهم</h3>
+        <div id="suspects-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+      </div>
+
+      <!-- زر الاتهام -->
+      <div class="p-6 border-t border-gray-800 text-center">
+        <button id="accuse-btn" onclick="submitAccusation()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-10 py-3.5 rounded-xl shadow-lg transition text-base">
           توجيه الاتهام ⚖️
         </button>
       </div>
-      <div id="result-message" class="mt-4 text-center text-sm font-semibold hidden"></div>
+      
+      <div id="result-message" class="mx-6 mb-6 text-center text-sm font-semibold hidden"></div>
     </div>
   </section>
 </main>
@@ -83,6 +182,26 @@ let selectedSuspect = null;
 let currentUser = null;
 let currentProfile = null;
 
+// صور افتراضية للمشتبه بهم حسب الجنس
+const MALE_IMAGES = [
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop'
+];
+const FEMALE_IMAGES = [
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop'
+];
+
+function getSuspectImage(suspect, index) {
+  // استخدم emoji للحكم على الجنس تقريبياً
+  const emoji = suspect.emoji || '';
+  const isFemale = emoji.includes('👩') || emoji.includes('🧑‍⚕️') && emoji.includes('♀');
+  const pool = isFemale ? FEMALE_IMAGES : MALE_IMAGES;
+  return pool[index % pool.length];
+}
+
 async function signOut() {
   await supabaseClient.auth.signOut();
   window.location.href = 'login.html';
@@ -91,17 +210,27 @@ async function signOut() {
 async function loadTodayCase() {
   const loadingEl = document.getElementById('case-loading');
   try {
-    console.log('Fetching from:', `${WORKER_URL}/today`);
     const res = await fetch(`${WORKER_URL}/today`);
-    console.log('Response status:', res.status);
     const data = await res.json();
-    console.log('Data received:', data);
     
     if (!data || data.length === 0) {
       loadingEl.innerText = 'لا توجد قضية اليوم. عُد غداً.';
       return;
     }
     currentCase = data[0];
+    
+    // اجلب الفصول والصورة (إن وُجدت)
+    const { data: fullCase } = await supabaseClient
+      .from('cases')
+      .select('scene_image, chapters')
+      .eq('id', currentCase.id)
+      .single();
+    
+    if (fullCase) {
+      currentCase.scene_image = fullCase.scene_image;
+      currentCase.chapters = fullCase.chapters;
+    }
+    
     renderCase(currentCase);
   } catch (e) {
     console.error('Error loading case:', e);
@@ -109,22 +238,62 @@ async function loadTodayCase() {
   }
 }
 
-function renderCase(c) {
+async function renderCase(c) {
   document.getElementById('case-loading').classList.add('hidden');
   document.getElementById('case-content').classList.remove('hidden');
   document.getElementById('case-number').innerText = `قضية رقم #${c.case_number}`;
   document.getElementById('case-title').innerText = c.title;
-  document.getElementById('case-description').innerText = c.description;
 
+  // صورة المشهد
+  const sceneImg = document.getElementById('scene-image');
+  if (c.scene_image) {
+    sceneImg.src = c.scene_image;
+  } else {
+    sceneImg.src = 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=800';
+  }
+  sceneImg.classList.add('fade-in-up');
+
+  // الفصول
+  const chaptersContainer = document.getElementById('chapters-container');
+  chaptersContainer.innerHTML = '';
+  
+  if (c.chapters && c.chapters.length > 0) {
+    // عرض الفصول بتأثير متتابع
+    for (let i = 0; i < c.chapters.length; i++) {
+      const chapter = c.chapters[i];
+      const div = document.createElement('div');
+      div.className = 'chapter-block fade-in-up';
+      div.style.animationDelay = `${i * 0.3}s`;
+      div.innerHTML = `
+        <div class="chapter-title">
+          <span>الفصل ${i + 1}</span>
+          <span class="text-gray-500">— ${chapter.title}</span>
+        </div>
+        <p class="text-gray-300 leading-relaxed text-sm md:text-base">${chapter.text}</p>
+      `;
+      chaptersContainer.appendChild(div);
+    }
+  } else {
+    // إذا لم توجد فصول، اعرض الوصف العادي
+    const div = document.createElement('div');
+    div.className = 'fade-in-up';
+    div.innerHTML = `<p class="text-gray-300 leading-relaxed text-sm md:text-base">${c.description}</p>`;
+    chaptersContainer.appendChild(div);
+  }
+
+  // المشتبه بهم
   const grid = document.getElementById('suspects-grid');
   grid.innerHTML = '';
-  c.suspects.forEach((s) => {
+  c.suspects.forEach((s, i) => {
     const div = document.createElement('div');
-    div.className = 'suspect-card cursor-pointer bg-gray-900/80 border border-gray-800 p-4 rounded-xl hover:border-red-500 transition';
+    div.className = 'suspect-card cursor-pointer bg-gray-900/80 border border-gray-800 rounded-xl overflow-hidden hover:border-red-500 transition-all fade-in-up';
+    div.style.animationDelay = `${(c.chapters?.length || 1) * 0.3 + i * 0.15}s`;
     div.innerHTML = `
-      <div class="text-2xl mb-2">${s.emoji}</div>
-      <h4 class="font-bold text-white text-sm">${s.name}</h4>
-      <p class="text-xs text-gray-400 mt-1">${s.description}</p>
+      <img class="suspect-image" src="${getSuspectImage(s, i)}" alt="${s.name}">
+      <div class="p-3">
+        <h4 class="font-bold text-white text-sm">${s.name}</h4>
+        <p class="text-xs text-gray-400 mt-1 leading-relaxed">${s.description}</p>
+      </div>
     `;
     div.onclick = () => selectSuspect(s.name, div);
     grid.appendChild(div);
@@ -133,8 +302,10 @@ function renderCase(c) {
 
 function selectSuspect(name, el) {
   selectedSuspect = name;
-  document.querySelectorAll('.suspect-card').forEach(c => c.classList.remove('border-red-500', 'bg-red-950/20'));
-  el.classList.add('border-red-500', 'bg-red-950/20');
+  document.querySelectorAll('.suspect-card').forEach(c => {
+    c.classList.remove('border-red-500', 'bg-red-950/20', 'ring-2', 'ring-red-500');
+  });
+  el.classList.add('border-red-500', 'bg-red-950/20', 'ring-2', 'ring-red-500');
 }
 
 async function submitAccusation() {
@@ -142,7 +313,7 @@ async function submitAccusation() {
   msg.classList.remove('hidden');
 
   if (!selectedSuspect) {
-    msg.className = 'mt-4 text-center text-sm font-semibold text-yellow-500';
+    msg.className = 'mx-6 mb-6 text-center text-sm font-semibold text-yellow-500';
     msg.innerText = '⚠️ اختر مشتبهاً به أولاً.';
     return;
   }
@@ -156,21 +327,24 @@ async function submitAccusation() {
     const result = await res.json();
 
     if (result.correct) {
-      msg.className = 'mt-4 text-center text-sm font-semibold text-green-400';
+      msg.className = 'mx-6 mb-6 text-center text-sm font-semibold text-green-400';
       msg.innerText = `🎉 إجابة صحيحة! ${result.explanation}`;
+      document.getElementById('case-section').classList.add('glow');
       document.getElementById('accuse-btn').disabled = true;
       document.getElementById('accuse-btn').classList.add('opacity-50', 'cursor-not-allowed');
       await recordSolve();
       await refreshStreak();
     } else {
-      msg.className = 'mt-4 text-center text-sm font-semibold text-red-500';
+      msg.className = 'mx-6 mb-6 text-center text-sm font-semibold text-red-500';
       msg.innerText = '❌ اتهام خاطئ. عُد غداً لمحاولة جديدة.';
+      document.getElementById('case-section').classList.add('shake');
+      setTimeout(() => document.getElementById('case-section').classList.remove('shake'), 600);
       document.getElementById('accuse-btn').disabled = true;
       document.getElementById('accuse-btn').classList.add('opacity-50', 'cursor-not-allowed');
     }
   } catch (e) {
     console.error('Error:', e);
-    msg.className = 'mt-4 text-center text-sm font-semibold text-red-500';
+    msg.className = 'mx-6 mb-6 text-center text-sm font-semibold text-red-500';
     msg.innerText = 'حدث خطأ. حاول مرة أخرى.';
   }
 }
@@ -234,7 +408,6 @@ async function init() {
   document.getElementById('welcome-bar').classList.remove('hidden');
   document.getElementById('welcome-name').innerText = username;
 
-  // ⚠️ الترتيب المهم: حمّل القضية أولاً
   await loadTodayCase();
   await refreshStreak();
 }
