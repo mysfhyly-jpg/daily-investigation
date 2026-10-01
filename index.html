@@ -5,9 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>التحقيق اليومي — لغز جريمة كل يوم</title>
 <meta name="description" content="قضية جريمة تفاعلية جديدة كل يوم. حل اللغز، ابنِ سلسلة انتصاراتك، وكن المحقق الأول.">
-<meta property="og:title" content="التحقيق اليومي — لغز جريمة كل يوم">
+<meta property="og:title" content="التحقيق اليومي">
 <meta property="og:description" content="قضية جديدة كل يوم. هل تستطيع حلّها؟">
-<meta property="og:type" content="website">
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -27,13 +26,17 @@
         <p class="text-xs text-gray-400">قضية جديدة كل يوم</p>
       </div>
     </div>
-    <div id="user-status" class="text-xs">
-      <button onclick="openAuth()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg font-semibold">تسجيل الدخول</button>
+    <div id="user-status" class="text-xs flex items-center gap-2">
+      <span class="text-gray-400">جارٍ التحميل...</span>
     </div>
   </div>
 </header>
 
 <main class="max-w-4xl mx-auto px-4 py-8 flex-grow w-full space-y-8">
+
+  <div id="welcome-bar" class="glass-panel rounded-xl p-4 text-center hidden">
+    <p class="text-sm text-gray-300">أهلاً بك يا محقق <span id="welcome-name" class="text-red-400 font-bold"></span> 👋</p>
+  </div>
 
   <div id="streak-bar" class="hidden glass-panel rounded-xl p-3 flex justify-between items-center text-sm">
     <span>🔥 سلسلة الحلول: <b id="streak-count" class="text-yellow-400">0</b> يوم</span>
@@ -62,31 +65,7 @@
       <div id="result-message" class="mt-4 text-center text-sm font-semibold hidden"></div>
     </div>
   </section>
-
-  <section class="glass-panel rounded-2xl p-6 relative">
-    <div class="flex justify-between items-center mb-4">
-      <h3 class="text-lg font-bold text-white">🗂️ أرشيف القضايا</h3>
-      <span class="bg-yellow-500/20 text-yellow-400 text-xs px-2.5 py-1 rounded-md">قريباً</span>
-    </div>
-    <div class="filter blur-sm select-none pointer-events-none space-y-3">
-      <div class="bg-gray-900 p-3 rounded-lg border border-gray-800">قضية #103: لغز اللوحة المسروقة</div>
-      <div class="bg-gray-900 p-3 rounded-lg border border-gray-800">قضية #102: السم في القطار السريع</div>
-    </div>
-    <p class="text-center text-xs text-gray-500 mt-3">الأرشيف الكامل قادم قريباً</p>
-  </section>
 </main>
-
-<div id="auth-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
-  <div class="bg-gray-900 border border-gray-800 rounded-2xl max-w-md w-full p-6 relative">
-    <button onclick="closeAuth()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-xl">✕</button>
-    <h3 class="text-xl font-bold text-white mb-4 text-center">دخول المحقق</h3>
-    <input id="auth-email" type="email" placeholder="البريد الإلكتروني" class="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 mb-3 text-sm text-white">
-    <input id="auth-password" type="password" placeholder="كلمة المرور" class="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 mb-4 text-sm text-white">
-    <button onclick="signIn()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl mb-2">تسجيل الدخول</button>
-    <button onclick="signUp()" class="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl">إنشاء حساب</button>
-    <p id="auth-error" class="text-red-400 text-xs text-center mt-3 hidden"></p>
-  </div>
-</div>
 
 <footer class="border-t border-gray-800 text-center py-4 text-xs text-gray-500 mt-auto">
   جميع الحقوق محفوظة © 2026 — التحقيق اليومي
@@ -102,38 +81,11 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentCase = null;
 let selectedSuspect = null;
 let currentUser = null;
-
-function openAuth() { document.getElementById('auth-modal').classList.remove('hidden'); }
-function closeAuth() { document.getElementById('auth-modal').classList.add('hidden'); }
-
-async function signUp() {
-  const email = document.getElementById('auth-email').value.trim();
-  const password = document.getElementById('auth-password').value;
-  const { error } = await supabaseClient.auth.signUp({ email, password });
-  if (error) return showAuthError(error.message);
-  await signIn();
-}
-
-async function signIn() {
-  const email = document.getElementById('auth-email').value.trim();
-  const password = document.getElementById('auth-password').value;
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-  if (error) return showAuthError(error.message);
-  currentUser = data.user;
-  closeAuth();
-  await onUserReady();
-}
-
-function showAuthError(msg) {
-  const el = document.getElementById('auth-error');
-  el.innerText = msg;
-  el.classList.remove('hidden');
-}
+let currentProfile = null;
 
 async function signOut() {
   await supabaseClient.auth.signOut();
-  currentUser = null;
-  location.reload();
+  window.location.href = 'login.html';
 }
 
 async function loadTodayCase() {
@@ -175,7 +127,6 @@ function renderCase(c) {
 }
 
 function selectSuspect(name, el) {
-  if (!currentUser) { openAuth(); return; }
   selectedSuspect = name;
   document.querySelectorAll('.suspect-card').forEach(c => c.classList.remove('border-red-500', 'bg-red-950/20'));
   el.classList.add('border-red-500', 'bg-red-950/20');
@@ -185,7 +136,6 @@ async function submitAccusation() {
   const msg = document.getElementById('result-message');
   msg.classList.remove('hidden');
 
-  if (!currentUser) { openAuth(); return; }
   if (!selectedSuspect) {
     msg.className = 'mt-4 text-center text-sm font-semibold text-yellow-500';
     msg.innerText = '⚠️ اختر مشتبهاً به أولاً.';
@@ -208,7 +158,9 @@ async function submitAccusation() {
     await refreshStreak();
   } else {
     msg.className = 'mt-4 text-center text-sm font-semibold text-red-500';
-    msg.innerText = '❌ اتهام خاطئ. جرّب غداً.';
+    msg.innerText = '❌ اتهام خاطئ. عُد غداً لمحاولة جديدة.';
+    document.getElementById('accuse-btn').disabled = true;
+    document.getElementById('accuse-btn').classList.add('opacity-50', 'cursor-not-allowed');
   }
 }
 
@@ -227,13 +179,13 @@ async function recordSolve() {
   }
   await supabaseClient.from('profiles').upsert({
     id: currentUser.id,
+    username: currentProfile?.username,
     streak: newStreak,
     last_solved_date: today,
   });
 }
 
 async function refreshStreak() {
-  if (!currentUser) return;
   const { data } = await supabaseClient.from('profiles').select('streak').eq('id', currentUser.id).single();
   const streak = data?.streak || 0;
   document.getElementById('streak-bar').classList.remove('hidden');
@@ -244,17 +196,35 @@ async function refreshStreak() {
   document.getElementById('solve-state').innerText = solved ? '✅ حُلّت اليوم' : '⏳ لم تُحل بعد';
 }
 
-async function onUserReady() {
-  document.getElementById('user-status').innerHTML =
-    `<span class="text-gray-300">${currentUser.email}</span>
-     <button onclick="signOut()" class="ml-2 text-red-400 hover:text-red-300">خروج</button>`;
-  await refreshStreak();
-}
-
 async function init() {
   const { data: { user } } = await supabaseClient.auth.getUser();
+  
+  if (!user) {
+    window.location.href = 'login.html';
+    return;
+  }
+  
   currentUser = user;
-  if (user) await onUserReady();
+
+  // جلب profile
+  const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
+  currentProfile = profile;
+  const username = profile?.username || user.email.split('@')[0];
+
+  // عرض الاسم مع أيقونة
+  document.getElementById('user-status').innerHTML = `
+    <span class="flex items-center gap-1.5 bg-gray-800 px-3 py-1.5 rounded-lg">
+      <span>👤</span>
+      <span class="text-gray-200 font-semibold">${username}</span>
+    </span>
+    <button onclick="signOut()" class="text-red-400 hover:text-red-300 text-xs">خروج</button>
+  `;
+
+  // عرض شريط الترحيب
+  document.getElementById('welcome-bar').classList.remove('hidden');
+  document.getElementById('welcome-name').innerText = username;
+
+  await refreshStreak();
   await loadTodayCase();
 }
 
