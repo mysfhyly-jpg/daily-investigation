@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>التحقيق اليومي — لغز جريمة كل يوم</title>
+<meta name="description" content="قضية جريمة تفاعلية جديدة كل يوم. حل اللغز، ابنِ سلسلة انتصاراتك، وكن المحقق الأول.">
+<meta property="og:title" content="التحقيق اليومي — لغز جريمة كل يوم">
+<meta property="og:description" content="قضية جديدة كل يوم. هل تستطيع حلّها؟">
+<meta property="og:type" content="website">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Cairo', sans-serif; }
+  .glass-panel { background: rgba(17,24,39,0.75); backdrop-filter: blur(12px); border: 1px solid rgba(55,65,81,0.5); }
+</style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col">
+
+<header class="border-b border-gray-800 bg-gray-900/50 sticky top-0 z-50">
+  <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+    <div class="flex items-center gap-3">
+      <span class="text-3xl">🔍</span>
+      <div>
+        <h1 class="text-xl font-bold tracking-wider text-red-500">التحقيق اليومي</h1>
+        <p class="text-xs text-gray-400">قضية جديدة كل يوم</p>
+      </div>
+    </div>
+    <div id="user-status" class="text-xs">
+      <button onclick="openAuth()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg font-semibold">تسجيل الدخول</button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-4 py-8 flex-grow w-full space-y-8">
+
+  <div id="streak-bar" class="hidden glass-panel rounded-xl p-3 flex justify-between items-center text-sm">
+    <span>🔥 سلسلة الحلول: <b id="streak-count" class="text-yellow-400">0</b> يوم</span>
+    <span id="solve-state" class="text-gray-400"></span>
+  </div>
+
+  <section class="glass-panel rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+    <div class="absolute top-0 right-0 w-2 h-full bg-red-600"></div>
+    <div id="case-loading" class="text-center py-8 text-gray-400">جارٍ تحميل قضية اليوم...</div>
+    <div id="case-content" class="hidden">
+      <div class="flex justify-between items-start mb-4">
+        <span id="case-number" class="bg-red-900/40 text-red-400 text-xs px-3 py-1 rounded-full font-bold"></span>
+        <span class="text-xs text-gray-400">اليوم</span>
+      </div>
+      <h2 id="case-title" class="text-2xl font-bold text-white mb-3"></h2>
+      <p id="case-description" class="text-gray-300 leading-relaxed mb-6 text-sm md:text-base"></p>
+
+      <h3 class="text-lg font-bold text-gray-200 mb-4 border-b border-gray-800 pb-2">المشتبه بهم:</h3>
+      <div id="suspects-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"></div>
+
+      <div class="text-center">
+        <button id="accuse-btn" onclick="submitAccusation()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3 rounded-xl shadow-lg transition text-sm md:text-base">
+          توجيه الاتهام ⚖️
+        </button>
+      </div>
+      <div id="result-message" class="mt-4 text-center text-sm font-semibold hidden"></div>
+    </div>
+  </section>
+
+  <section class="glass-panel rounded-2xl p-6 relative">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold text-white">🗂️ أرشيف القضايا</h3>
+      <span class="bg-yellow-500/20 text-yellow-400 text-xs px-2.5 py-1 rounded-md">قريباً</span>
+    </div>
+    <div class="filter blur-sm select-none pointer-events-none space-y-3">
+      <div class="bg-gray-900 p-3 rounded-lg border border-gray-800">قضية #103: لغز اللوحة المسروقة</div>
+      <div class="bg-gray-900 p-3 rounded-lg border border-gray-800">قضية #102: السم في القطار السريع</div>
+    </div>
+    <p class="text-center text-xs text-gray-500 mt-3">الأرشيف الكامل قادم قريباً</p>
+  </section>
+</main>
+
+<div id="auth-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-900 border border-gray-800 rounded-2xl max-w-md w-full p-6 relative">
+    <button onclick="closeAuth()" class="absolute top-4 left-4 text-gray-400 hover:text-white text-xl">✕</button>
+    <h3 class="text-xl font-bold text-white mb-4 text-center">دخول المحقق</h3>
+    <input id="auth-email" type="email" placeholder="البريد الإلكتروني" class="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 mb-3 text-sm text-white">
+    <input id="auth-password" type="password" placeholder="كلمة المرور" class="w-full bg-gray-950 border border-gray-800 rounded-lg p-3 mb-4 text-sm text-white">
+    <button onclick="signIn()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl mb-2">تسجيل الدخول</button>
+    <button onclick="signUp()" class="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 rounded-xl">إنشاء حساب</button>
+    <p id="auth-error" class="text-red-400 text-xs text-center mt-3 hidden"></p>
+  </div>
+</div>
+
+<footer class="border-t border-gray-800 text-center py-4 text-xs text-gray-500 mt-auto">
+  جميع الحقوق محفوظة © 2026 — التحقيق اليومي
+</footer>
+
+<script>
+const SUPABASE_URL = 'https://mgbzefarncwwtzbutxkp.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nYnplZmFybmN3d3R6YnV0eGtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4NTY3NDYsImV4cCI6MjEwNjQzMjc0Nn0.XeBtZ_3kJ8W2QWvPTHnQ2kN7Sxrg4glnFEUByMlKzc0';
+const WORKER_URL = 'https://detective-api.mysfhyly.workers.dev';
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentCase = null;
+let selectedSuspect = null;
+let currentUser = null;
+
+function openAuth() { document.getElementById('auth-modal').classList.remove('hidden'); }
+function closeAuth() { document.getElementById('auth-modal').classList.add('hidden'); }
+
+async function signUp() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const { error } = await supabaseClient.auth.signUp({ email, password });
+  if (error) return showAuthError(error.message);
+  await signIn();
+}
+
+async function signIn() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) return showAuthError(error.message);
+  currentUser = data.user;
+  closeAuth();
+  await onUserReady();
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.innerText = msg;
+  el.classList.remove('hidden');
+}
+
+async function signOut() {
+  await supabaseClient.auth.signOut();
+  currentUser = null;
+  location.reload();
+}
+
+async function loadTodayCase() {
+  try {
+    const res = await fetch(`${WORKER_URL}/today`);
+    const data = await res.json();
+    if (!data || data.length === 0) {
+      document.getElementById('case-loading').innerText = 'لا توجد قضية اليوم. عُد غداً.';
+      return;
+    }
+    currentCase = data[0];
+    renderCase(currentCase);
+  } catch (e) {
+    document.getElementById('case-loading').innerText = 'حدث خطأ في تحميل القضية.';
+    console.error(e);
+  }
+}
+
+function renderCase(c) {
+  document.getElementById('case-loading').classList.add('hidden');
+  document.getElementById('case-content').classList.remove('hidden');
+  document.getElementById('case-number').innerText = `قضية رقم #${c.case_number}`;
+  document.getElementById('case-title').innerText = c.title;
+  document.getElementById('case-description').innerText = c.description;
+
+  const grid = document.getElementById('suspects-grid');
+  grid.innerHTML = '';
+  c.suspects.forEach((s) => {
+    const div = document.createElement('div');
+    div.className = 'suspect-card cursor-pointer bg-gray-900/80 border border-gray-800 p-4 rounded-xl hover:border-red-500 transition';
+    div.innerHTML = `
+      <div class="text-2xl mb-2">${s.emoji}</div>
+      <h4 class="font-bold text-white text-sm">${s.name}</h4>
+      <p class="text-xs text-gray-400 mt-1">${s.description}</p>
+    `;
+    div.onclick = () => selectSuspect(s.name, div);
+    grid.appendChild(div);
+  });
+}
+
+function selectSuspect(name, el) {
+  if (!currentUser) { openAuth(); return; }
+  selectedSuspect = name;
+  document.querySelectorAll('.suspect-card').forEach(c => c.classList.remove('border-red-500', 'bg-red-950/20'));
+  el.classList.add('border-red-500', 'bg-red-950/20');
+}
+
+async function submitAccusation() {
+  const msg = document.getElementById('result-message');
+  msg.classList.remove('hidden');
+
+  if (!currentUser) { openAuth(); return; }
+  if (!selectedSuspect) {
+    msg.className = 'mt-4 text-center text-sm font-semibold text-yellow-500';
+    msg.innerText = '⚠️ اختر مشتبهاً به أولاً.';
+    return;
+  }
+
+  const res = await fetch(`${WORKER_URL}/accuse`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ caseId: currentCase.id, suspect: selectedSuspect, userId: currentUser.id }),
+  });
+  const result = await res.json();
+
+  if (result.correct) {
+    msg.className = 'mt-4 text-center text-sm font-semibold text-green-400';
+    msg.innerText = `🎉 إجابة صحيحة! ${result.explanation}`;
+    document.getElementById('accuse-btn').disabled = true;
+    document.getElementById('accuse-btn').classList.add('opacity-50', 'cursor-not-allowed');
+    await recordSolve();
+    await refreshStreak();
+  } else {
+    msg.className = 'mt-4 text-center text-sm font-semibold text-red-500';
+    msg.innerText = '❌ اتهام خاطئ. جرّب غداً.';
+  }
+}
+
+async function recordSolve() {
+  await supabaseClient.from('solves').insert({ user_id: currentUser.id, case_id: currentCase.id });
+
+  const today = new Date().toISOString().split('T')[0];
+  const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', currentUser.id).single();
+
+  let newStreak = 1;
+  if (profile?.last_solved_date) {
+    const last = new Date(profile.last_solved_date);
+    const diff = Math.round((new Date(today) - last) / 86400000);
+    if (diff === 1) newStreak = (profile.streak || 0) + 1;
+    else if (diff === 0) newStreak = profile.streak || 1;
+  }
+  await supabaseClient.from('profiles').upsert({
+    id: currentUser.id,
+    streak: newStreak,
+    last_solved_date: today,
+  });
+}
+
+async function refreshStreak() {
+  if (!currentUser) return;
+  const { data } = await supabaseClient.from('profiles').select('streak').eq('id', currentUser.id).single();
+  const streak = data?.streak || 0;
+  document.getElementById('streak-bar').classList.remove('hidden');
+  document.getElementById('streak-count').innerText = streak;
+
+  const { data: solved } = await supabaseClient.from('solves')
+    .select('id').eq('user_id', currentUser.id).eq('case_id', currentCase.id).maybeSingle();
+  document.getElementById('solve-state').innerText = solved ? '✅ حُلّت اليوم' : '⏳ لم تُحل بعد';
+}
+
+async function onUserReady() {
+  document.getElementById('user-status').innerHTML =
+    `<span class="text-gray-300">${currentUser.email}</span>
+     <button onclick="signOut()" class="ml-2 text-red-400 hover:text-red-300">خروج</button>`;
+  await refreshStreak();
+}
+
+async function init() {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  currentUser = user;
+  if (user) await onUserReady();
+  await loadTodayCase();
+}
+
+init();
+</script>
+</body>
+</html>
