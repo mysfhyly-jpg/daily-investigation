@@ -89,18 +89,23 @@ async function signOut() {
 }
 
 async function loadTodayCase() {
+  const loadingEl = document.getElementById('case-loading');
   try {
+    console.log('Fetching from:', `${WORKER_URL}/today`);
     const res = await fetch(`${WORKER_URL}/today`);
+    console.log('Response status:', res.status);
     const data = await res.json();
+    console.log('Data received:', data);
+    
     if (!data || data.length === 0) {
-      document.getElementById('case-loading').innerText = 'لا توجد قضية اليوم. عُد غداً.';
+      loadingEl.innerText = 'لا توجد قضية اليوم. عُد غداً.';
       return;
     }
     currentCase = data[0];
     renderCase(currentCase);
   } catch (e) {
-    document.getElementById('case-loading').innerText = 'حدث خطأ في تحميل القضية.';
-    console.error(e);
+    console.error('Error loading case:', e);
+    loadingEl.innerText = 'حدث خطأ في تحميل القضية.';
   }
 }
 
@@ -142,25 +147,31 @@ async function submitAccusation() {
     return;
   }
 
-  const res = await fetch(`${WORKER_URL}/accuse`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ caseId: currentCase.id, suspect: selectedSuspect, userId: currentUser.id }),
-  });
-  const result = await res.json();
+  try {
+    const res = await fetch(`${WORKER_URL}/accuse`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caseId: currentCase.id, suspect: selectedSuspect, userId: currentUser.id }),
+    });
+    const result = await res.json();
 
-  if (result.correct) {
-    msg.className = 'mt-4 text-center text-sm font-semibold text-green-400';
-    msg.innerText = `🎉 إجابة صحيحة! ${result.explanation}`;
-    document.getElementById('accuse-btn').disabled = true;
-    document.getElementById('accuse-btn').classList.add('opacity-50', 'cursor-not-allowed');
-    await recordSolve();
-    await refreshStreak();
-  } else {
+    if (result.correct) {
+      msg.className = 'mt-4 text-center text-sm font-semibold text-green-400';
+      msg.innerText = `🎉 إجابة صحيحة! ${result.explanation}`;
+      document.getElementById('accuse-btn').disabled = true;
+      document.getElementById('accuse-btn').classList.add('opacity-50', 'cursor-not-allowed');
+      await recordSolve();
+      await refreshStreak();
+    } else {
+      msg.className = 'mt-4 text-center text-sm font-semibold text-red-500';
+      msg.innerText = '❌ اتهام خاطئ. عُد غداً لمحاولة جديدة.';
+      document.getElementById('accuse-btn').disabled = true;
+      document.getElementById('accuse-btn').classList.add('opacity-50', 'cursor-not-allowed');
+    }
+  } catch (e) {
+    console.error('Error:', e);
     msg.className = 'mt-4 text-center text-sm font-semibold text-red-500';
-    msg.innerText = '❌ اتهام خاطئ. عُد غداً لمحاولة جديدة.';
-    document.getElementById('accuse-btn').disabled = true;
-    document.getElementById('accuse-btn').classList.add('opacity-50', 'cursor-not-allowed');
+    msg.innerText = 'حدث خطأ. حاول مرة أخرى.';
   }
 }
 
@@ -191,9 +202,11 @@ async function refreshStreak() {
   document.getElementById('streak-bar').classList.remove('hidden');
   document.getElementById('streak-count').innerText = streak;
 
-  const { data: solved } = await supabaseClient.from('solves')
-    .select('id').eq('user_id', currentUser.id).eq('case_id', currentCase.id).maybeSingle();
-  document.getElementById('solve-state').innerText = solved ? '✅ حُلّت اليوم' : '⏳ لم تُحل بعد';
+  if (currentCase) {
+    const { data: solved } = await supabaseClient.from('solves')
+      .select('id').eq('user_id', currentUser.id).eq('case_id', currentCase.id).maybeSingle();
+    document.getElementById('solve-state').innerText = solved ? '✅ حُلّت اليوم' : '⏳ لم تُحل بعد';
+  }
 }
 
 async function init() {
@@ -206,12 +219,10 @@ async function init() {
   
   currentUser = user;
 
-  // جلب profile
   const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', user.id).single();
   currentProfile = profile;
   const username = profile?.username || user.email.split('@')[0];
 
-  // عرض الاسم مع أيقونة
   document.getElementById('user-status').innerHTML = `
     <span class="flex items-center gap-1.5 bg-gray-800 px-3 py-1.5 rounded-lg">
       <span>👤</span>
@@ -220,12 +231,12 @@ async function init() {
     <button onclick="signOut()" class="text-red-400 hover:text-red-300 text-xs">خروج</button>
   `;
 
-  // عرض شريط الترحيب
   document.getElementById('welcome-bar').classList.remove('hidden');
   document.getElementById('welcome-name').innerText = username;
 
-  await refreshStreak();
+  // ⚠️ الترتيب المهم: حمّل القضية أولاً
   await loadTodayCase();
+  await refreshStreak();
 }
 
 init();
